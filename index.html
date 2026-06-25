@@ -103,6 +103,12 @@ tr.total-row td { font-weight: 700; background: var(--surface2); color: var(--te
 .stage-count { font-size: 26px; font-weight: 600; color: var(--text); }
 .stage-cr { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
+/* FUNNEL PLAN */
+.funnel-plan-input { background: var(--surface); border: 0.5px solid var(--border2); border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--text); width: 100%; text-align: center; margin-top: 4px; }
+.funnel-plan-input:focus { outline: none; border-color: var(--accent2); }
+.funnel-plan-label { font-size: 10px; color: var(--text3); text-align: center; margin-bottom: 2px; }
+.funnel-plan-diff { font-size: 11px; text-align: center; margin-top: 4px; padding: 2px 6px; border-radius: 6px; font-weight: 500; }
+
 /* PRORATED NOTE */
 .prorated-note { background: #FFF8E1; border: 0.5px solid #FFD54F; border-radius: var(--radius); padding: 8px 14px; font-size: 12px; color: #795548; margin-bottom: 1rem; display: none; }
 body.dark .prorated-note { background: #2a2010; border-color: #795548; color: #FFCC80; }
@@ -212,6 +218,8 @@ body.dark .prorated-note { background: #2a2010; border-color: #795548; color: #F
 <div class="charts-row">
   <div class="card">
     <div class="card-title">Воронка лидов</div>
+    <!-- Плановые значения воронки -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;" id="funnelPlanRow"></div>
     <div class="funnel-stages" id="funnelStages"></div>
   </div>
   <div class="card">
@@ -410,11 +418,11 @@ function applyQuickPeriod() {
     to   = new Date(now); to.setDate(now.getDate()-day);     to.setHours(23,59,59,999);
     from = new Date(to);  from.setDate(to.getDate()-6);     from.setHours(0,0,0,0);
   } else if (val==='this_month') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
-    to   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+    from = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+    to   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
   } else if (val==='last_month') {
-    from = new Date(now.getFullYear(), now.getMonth()-1, 1);
-    to   = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59);
+    from = new Date(now.getFullYear(), now.getMonth()-1, 1, 0,0,0,0);
+    to   = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999);
   } else if (val==='this_quarter') {
     var q=Math.floor(now.getMonth()/3);
     from = new Date(now.getFullYear(), q*3, 1);
@@ -440,8 +448,8 @@ function applyFilters() {
 
 function resetFilters() {
   var now  = new Date();
-  activeFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-  activeTo   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+  activeFrom = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
+  activeTo   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999);
   document.getElementById('filterFrom').value = activeFrom.toISOString().slice(0,10);
   document.getElementById('filterTo').value   = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
   document.getElementById('quickPeriod').value = 'this_month';
@@ -681,15 +689,71 @@ function renderTable(byChannel,budgets,tL,tQ,tD,tR,tP,tBplan,tBfact) {
 // ═══════════════════════════════════════════════════════════════
 //  ВОРОНКА
 // ═══════════════════════════════════════════════════════════════
-function renderFunnel(leads,qual,deals){
-  var stages=[
-    {name:'Входящие лиды',count:leads,cr:null},
-    {name:'Квал. лиды',count:qual,cr:leads?Math.round(qual/leads*100)+'%':'—'},
-    {name:'Сделки WON',count:deals,cr:qual?Math.round(deals/qual*100)+'%':'—'}
+
+// Ключи для планов воронки
+var FUNNEL_KEYS = ['funnel_leads','funnel_qual','funnel_deals'];
+var FUNNEL_LABELS = ['Входящие лиды','Квал. лиды','Сделки WON'];
+
+function getFunnelPlan(mk, key) {
+  return (budgetStore[mk] && budgetStore[mk][key]) || 0;
+}
+function setFunnelPlan(mk, key, val) {
+  if (!budgetStore[mk]) budgetStore[mk] = {};
+  budgetStore[mk][key] = parseInt(val) || 0;
+  saveStorage();
+  renderAll();
+}
+
+function renderFunnelPlan() {
+  var mk = monthKey(activeFrom || new Date());
+  var coeff = getProrateCoeff();
+  var html = '';
+  FUNNEL_KEYS.forEach(function(key, idx) {
+    var planMonth = getFunnelPlan(mk, key);
+    var planPeriod = Math.round(planMonth * coeff);
+    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:8px;">';
+    html += '<div class="funnel-plan-label">план на месяц</div>';
+    html += '<input class="funnel-plan-input" type="number" placeholder="0" value="'+(planMonth||'')+'" ';
+    html += 'onchange="setFunnelPlan(''+mk+'',''+key+'',this.value)" title="'+FUNNEL_LABELS[idx]+'">';
+    if (coeff < 0.99 && planMonth) {
+      html += '<div class="funnel-plan-diff" style="background:var(--surface2);color:var(--text3);">≈'+planPeriod+' за период</div>';
+    }
+    html += '</div>';
+  });
+  document.getElementById('funnelPlanRow').innerHTML = html;
+}
+
+function renderFunnel(leads, qual, deals) {
+  var mk = monthKey(activeFrom || new Date());
+  var coeff = getProrateCoeff();
+
+  var planLeads = Math.round(getFunnelPlan(mk, 'funnel_leads') * coeff);
+  var planQual  = Math.round(getFunnelPlan(mk, 'funnel_qual')  * coeff);
+  var planDeals = Math.round(getFunnelPlan(mk, 'funnel_deals') * coeff);
+
+  function diffHtml(fact, plan) {
+    if (!plan) return '';
+    var d = fact - plan;
+    var cls = d >= 0 ? 'color:#3B6D11' : 'color:#A32D2D';
+    return '<div style="font-size:11px;'+cls+';margin-top:3px;">'+(d>=0?'▲':'▼')+Math.abs(d)+' vs план '+plan+'</div>';
+  }
+
+  var stages = [
+    { name:'Входящие лиды', count:leads, cr:null,                                  diff:diffHtml(leads,planLeads) },
+    { name:'Квал. лиды',    count:qual,  cr:leads?Math.round(qual/leads*100)+'%':'—', diff:diffHtml(qual,planQual) },
+    { name:'Сделки WON',    count:deals, cr:qual?Math.round(deals/qual*100)+'%':'—',  diff:diffHtml(deals,planDeals) }
   ];
-  document.getElementById('funnelStages').innerHTML=stages.map(function(s){
-    return '<div class="stage"><div class="stage-name">'+s.name+'</div><div class="stage-count">'+s.count+'</div>'+(s.cr?'<div class="stage-cr">конв. '+s.cr+'</div>':'')+'</div>';
+
+  document.getElementById('funnelStages').innerHTML = stages.map(function(s) {
+    return '<div class="stage">' +
+      '<div class="stage-name">'+s.name+'</div>' +
+      '<div class="stage-count">'+s.count+'</div>' +
+      (s.cr ? '<div class="stage-cr">конв. '+s.cr+'</div>' : '') +
+      s.diff +
+      '</div>';
   }).join('');
+
+  renderFunnelPlan();
 }
 
 // ═══════════════════════════════════════════════════════════════
