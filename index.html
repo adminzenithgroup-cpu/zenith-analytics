@@ -276,6 +276,14 @@ function toggleTheme() {
   saveStorage();
 }
 
+// Форматируем дату в YYYY-MM-DD без UTC сдвига (для input type=date)
+function toDateStr(d) {
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  ХРАНИЛИЩЕ
 // ═══════════════════════════════════════════════════════════════
@@ -432,8 +440,8 @@ function applyQuickPeriod() {
     to   = new Date(now.getFullYear(), 11, 31, 12,0,0,0);
   } else if (val==='all') { from=null; to=null; }
   else { return; }
-  document.getElementById('filterFrom').value = from ? from.toISOString().slice(0,10) : '';
-  document.getElementById('filterTo').value   = to   ? to.toISOString().slice(0,10)   : '';
+  document.getElementById('filterFrom').value = from ? toDateStr(from) : '';
+  document.getElementById('filterTo').value   = to   ? toDateStr(to)   : '';
   applyFilters();
 }
 
@@ -450,8 +458,8 @@ function resetFilters() {
   var now  = new Date();
   activeFrom = new Date(now.getFullYear(), now.getMonth(), 1, 12,0,0,0);
   activeTo   = new Date(now.getFullYear(), now.getMonth()+1, 0, 12,0,0,0);
-  document.getElementById('filterFrom').value = activeFrom.toISOString().slice(0,10);
-  document.getElementById('filterTo').value   = activeTo.toISOString().slice(0,10);
+  document.getElementById('filterFrom').value = toDateStr(activeFrom);
+  document.getElementById('filterTo').value   = toDateStr(activeTo);
   document.getElementById('quickPeriod').value = 'this_month';
   renderAll();
   renderBudgetGrid();
