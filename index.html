@@ -445,11 +445,18 @@ function applyQuickPeriod() {
   applyFilters();
 }
 
+function parseLocalDate(str) {
+  // Парсим "YYYY-MM-DD" как локальную дату без UTC сдвига
+  if (!str) return null;
+  var parts = str.split('-');
+  return new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), 12, 0, 0, 0);
+}
+
 function applyFilters() {
   var fv = document.getElementById('filterFrom').value;
   var tv = document.getElementById('filterTo').value;
-  activeFrom = fv ? new Date(fv) : null;
-  activeTo   = tv ? new Date(tv+'T23:59:59') : null;
+  activeFrom = fv ? parseLocalDate(fv) : null;
+  activeTo   = tv ? parseLocalDate(tv) : null;
   renderAll();
   renderBudgetGrid();
 }
