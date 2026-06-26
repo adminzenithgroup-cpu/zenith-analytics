@@ -414,34 +414,55 @@ function getPeriodBudgets() {
 // ═══════════════════════════════════════════════════════════════
 //  ФИЛЬТРЫ
 // ═══════════════════════════════════════════════════════════════
+// Создаём строку YYYY-MM-DD для первого дня месяца
+function firstDayStr(year, month) {
+  return year + '-' + String(month+1).padStart(2,'0') + '-01';
+}
+// Создаём строку YYYY-MM-DD для последнего дня месяца
+function lastDayStr(year, month) {
+  var d = new Date(year, month+1, 0); // день 0 следующего месяца = последний день текущего
+  return year + '-' + String(month+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 function applyQuickPeriod() {
   var val = document.getElementById('quickPeriod').value;
-  var now = new Date(), from, to;
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth();
+  var fromStr, toStr;
+
   if (val==='this_week') {
     var day = now.getDay()||7;
-    from = new Date(now); from.setDate(now.getDate()-day+1); from.setHours(0,0,0,0);
-    to   = new Date(now); to.setDate(from.getDate()+6);     to.setHours(23,59,59,999);
+    var mon = new Date(y, m, now.getDate()-day+1);
+    var sun = new Date(y, m, now.getDate()-day+7);
+    fromStr = toDateStr(mon);
+    toStr   = toDateStr(sun);
   } else if (val==='last_week') {
     var day = now.getDay()||7;
-    to   = new Date(now); to.setDate(now.getDate()-day);     to.setHours(23,59,59,999);
-    from = new Date(to);  from.setDate(to.getDate()-6);     from.setHours(0,0,0,0);
+    var sun = new Date(y, m, now.getDate()-day);
+    var mon = new Date(sun.getFullYear(), sun.getMonth(), sun.getDate()-6);
+    fromStr = toDateStr(mon);
+    toStr   = toDateStr(sun);
   } else if (val==='this_month') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1, 12,0,0,0);
-    to   = new Date(now.getFullYear(), now.getMonth()+1, 0, 12,0,0,0);
+    fromStr = firstDayStr(y, m);
+    toStr   = lastDayStr(y, m);
   } else if (val==='last_month') {
-    from = new Date(now.getFullYear(), now.getMonth()-1, 1, 12,0,0,0);
-    to   = new Date(now.getFullYear(), now.getMonth(), 0, 12,0,0,0);
+    var lm = m === 0 ? 11 : m-1;
+    var ly = m === 0 ? y-1 : y;
+    fromStr = firstDayStr(ly, lm);
+    toStr   = lastDayStr(ly, lm);
   } else if (val==='this_quarter') {
-    var q=Math.floor(now.getMonth()/3);
-    from = new Date(now.getFullYear(), q*3, 1, 12,0,0,0);
-    to   = new Date(now.getFullYear(), q*3+3, 0, 12,0,0,0);
+    var q = Math.floor(m/3);
+    fromStr = firstDayStr(y, q*3);
+    toStr   = lastDayStr(y, q*3+2);
   } else if (val==='this_year') {
-    from = new Date(now.getFullYear(), 0, 1, 12,0,0,0);
-    to   = new Date(now.getFullYear(), 11, 31, 12,0,0,0);
-  } else if (val==='all') { from=null; to=null; }
-  else { return; }
-  document.getElementById('filterFrom').value = from ? toDateStr(from) : '';
-  document.getElementById('filterTo').value   = to   ? toDateStr(to)   : '';
+    fromStr = firstDayStr(y, 0);
+    toStr   = lastDayStr(y, 11);
+  } else if (val==='all') {
+    fromStr = ''; toStr = '';
+  } else { return; }
+
+  document.getElementById('filterFrom').value = fromStr;
+  document.getElementById('filterTo').value   = toStr;
   applyFilters();
 }
 
@@ -462,14 +483,14 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  var now  = new Date();
-  activeFrom = new Date(now.getFullYear(), now.getMonth(), 1, 12,0,0,0);
-  activeTo   = new Date(now.getFullYear(), now.getMonth()+1, 0, 12,0,0,0);
-  document.getElementById('filterFrom').value = toDateStr(activeFrom);
-  document.getElementById('filterTo').value   = toDateStr(activeTo);
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth();
+  var fromStr = firstDayStr(y, m);
+  var toStr   = lastDayStr(y, m);
+  document.getElementById('filterFrom').value = fromStr;
+  document.getElementById('filterTo').value   = toStr;
   document.getElementById('quickPeriod').value = 'this_month';
-  renderAll();
-  renderBudgetGrid();
+  applyFilters();
 }
 
 function filterByDate(deals, dateField) {
