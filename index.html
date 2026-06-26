@@ -138,12 +138,20 @@ body.dark .prorated-note { background: #2a2010; border-color: #795548; color: #F
 <div class="filters">
   <div class="filter-group">
     <span class="filter-label">Период — от</span>
-    <input type="date" id="filterFrom">
+    <div style="display:flex;gap:4px;">
+      <select id="filterFromMonth" style="min-width:100px;"></select>
+      <select id="filterFromYear" style="min-width:70px;"></select>
+    </div>
   </div>
   <div class="filter-group">
     <span class="filter-label">до</span>
-    <input type="date" id="filterTo">
+    <div style="display:flex;gap:4px;">
+      <select id="filterToMonth" style="min-width:100px;"></select>
+      <select id="filterToYear" style="min-width:70px;"></select>
+    </div>
   </div>
+  <input type="hidden" id="filterFrom">
+  <input type="hidden" id="filterTo">
   <div class="filter-sep"></div>
   <div class="filter-group">
     <span class="filter-label">Быстрый выбор</span>
@@ -265,6 +273,60 @@ var chartInst = null, dynChart = null, costChart = null;
 // budgetStore[monthKey] = { ch: { plan: N, fact: N } }
 var budgetStore = {};
 var isDark = false;
+
+// Инициализация селектов месяц/год
+function initDateSelects() {
+  var now = new Date();
+  var months = ['Январь','Февраль','Март','Апрель','Май','Июнь',
+                'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  var years = [];
+  for (var y = 2026; y <= now.getFullYear()+1; y++) years.push(y);
+
+  ['filterFromMonth','filterToMonth'].forEach(function(id) {
+    var sel = document.getElementById(id);
+    months.forEach(function(mn, idx) {
+      var opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = mn;
+      sel.appendChild(opt);
+    });
+  });
+  ['filterFromYear','filterToYear'].forEach(function(id) {
+    var sel = document.getElementById(id);
+    years.forEach(function(yr) {
+      var opt = document.createElement('option');
+      opt.value = yr;
+      opt.textContent = yr;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function setSelectsFromStr(fromStr, toStr) {
+  if (fromStr) {
+    var p = fromStr.split('-');
+    document.getElementById('filterFromYear').value  = p[0];
+    document.getElementById('filterFromMonth').value = parseInt(p[1])-1;
+  }
+  if (toStr) {
+    var p = toStr.split('-');
+    document.getElementById('filterToYear').value  = p[0];
+    document.getElementById('filterToMonth').value = parseInt(p[1])-1;
+  }
+  document.getElementById('filterFrom').value = fromStr||'';
+  document.getElementById('filterTo').value   = toStr||'';
+}
+
+function readSelectsToHidden() {
+  var fm = document.getElementById('filterFromMonth').value;
+  var fy = document.getElementById('filterFromYear').value;
+  var tm = document.getElementById('filterToMonth').value;
+  var ty = document.getElementById('filterToYear').value;
+  var fromStr = firstDayStr(parseInt(fy), parseInt(fm));
+  var toStr   = lastDayStr(parseInt(ty), parseInt(tm));
+  document.getElementById('filterFrom').value = fromStr;
+  document.getElementById('filterTo').value   = toStr;
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  ТЕМА
@@ -461,8 +523,7 @@ function applyQuickPeriod() {
     fromStr = ''; toStr = '';
   } else { return; }
 
-  document.getElementById('filterFrom').value = fromStr;
-  document.getElementById('filterTo').value   = toStr;
+  setSelectsFromStr(fromStr, toStr);
   applyFilters();
 }
 
@@ -474,6 +535,7 @@ function parseLocalDate(str) {
 }
 
 function applyFilters() {
+  readSelectsToHidden();
   var fv = document.getElementById('filterFrom').value;
   var tv = document.getElementById('filterTo').value;
   activeFrom = fv ? parseLocalDate(fv) : null;
@@ -599,12 +661,7 @@ function renderAll() {
     note.textContent = '⚠️ Выбран неполный период ('+pct+'% месяца) — бюджеты план/факт рассчитаны пропорционально дням.';
   } else { note.style.display='none'; }
 
-  // Описание периода
-  var pNote = document.getElementById('periodNote');
-  if (activeFrom && activeTo) {
-    var days = Math.round((activeTo-activeFrom)/86400000)+1;
-    pNote.textContent = days + ' дн.';
-  } else { pNote.textContent = ''; }
+  // Описание периода (обновляется в applyFilters)
 
   // Группировка
   var byChannel = {};
@@ -855,6 +912,7 @@ function renderChartCost(byChannel,budgets){
 // ═══════════════════════════════════════════════════════════════
 //  СТАРТ
 // ═══════════════════════════════════════════════════════════════
+initDateSelects();
 loadStorage();
 resetFilters();
 loadData();
