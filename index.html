@@ -714,7 +714,7 @@ function renderFunnelPlan() {
     html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:8px;">';
     html += '<div class="funnel-plan-label">план на месяц</div>';
     html += '<input class="funnel-plan-input" type="number" placeholder="0" value="'+(planMonth||'')+'" ';
-    html += 'onchange="setFunnelPlan(''+mk+'',''+key+'',this.value)" title="'+FUNNEL_LABELS[idx]+'">';
+    html += 'onchange="setFunnelPlan(\'' + mk + '\',\'' + key + '\',this.value)" title="' + FUNNEL_LABELS[idx] + '">';
     if (coeff < 0.99 && planMonth) {
       html += '<div class="funnel-plan-diff" style="background:var(--surface2);color:var(--text3);">≈'+planPeriod+' за период</div>';
     }
